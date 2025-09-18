@@ -1,66 +1,25 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <title>Bordjesmethode Oefenen</title>
+  <meta charset="utf-8" />
+  <title>Bordjesmethode — Vlekkensom</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 2rem;
-    }
-    .bordjes {
-      display: flex;
-      justify-content: center;
-      margin: 1rem 0;
-      flex-wrap: wrap;
-    }
-    .vakje {
-      border: 2px solid #333;
-      border-radius: 8px;
-      padding: 1rem;
-      margin: 0.2rem;
-      min-width: 40px;
-      text-align: center;
-      font-size: 1.2rem;
-    }
-    .controls {
-      margin: 1rem;
-    }
-    button {
-      margin: 0.3rem;
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    input, select {
-      padding: 0.4rem;
-      font-size: 1rem;
-      margin: 0.3rem;
-    }
-    #stappen {
-      margin-top: 2rem;
-      text-align: left;
-      max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    .stapregel {
-      background: #f0f0f0;
-      padding: 0.5rem;
-      border-radius: 6px;
-      margin-bottom: 0.5rem;
-    }
-    #feedback {
-      font-weight: bold;
-      margin-top: 1rem;
-    }
+    body { font-family: Arial, sans-serif; padding: 2rem; max-width: 800px; margin: auto; }
+    h1 { text-align: center; }
+    .controls { text-align: center; margin: 1rem 0; }
+    select, input { padding: 0.4rem; font-size: 1rem; margin: 0.3rem; }
+    button { padding: 0.5rem 0.9rem; font-size: 1rem; margin: 0.3rem; cursor: pointer; }
+    #equation { font-size: 1.6rem; text-align: center; margin: 1.2rem 0; }
+    #stappen { margin-top: 1.5rem; text-align: left; max-width: 720px; margin-left: auto; margin-right: auto; }
+    .stapregel { background: #f8f8f8; padding: 0.6rem; border-radius: 6px; margin-bottom: 0.5rem; white-space: pre-line; }
+    #feedback { font-weight: bold; text-align: center; margin-top: 1rem; }
+    .muted { color: #666; font-size: 0.9rem; }
   </style>
 </head>
 <body>
-  <h1>Bordjesmethode Oefenen</h1>
-  <p>Maak de vergelijking stap voor stap af.</p>
+  <h1>Bordjesmethode — Vlekkensom</h1>
+  <p class="muted">Voer elke bewerking op beide kanten uit. In de stappen zie je direct het resultaat (bijv. 10 - 2 = 8).</p>
 
   <div class="controls">
     <label>Kies niveau:
@@ -72,7 +31,7 @@
     </label>
   </div>
 
-  <div id="bordjes" class="bordjes"></div>
+  <div id="equation"></div>
 
   <div class="controls">
     <select id="bewerking">
@@ -86,97 +45,159 @@
     <button onclick="reset()">Nieuwe som</button>
   </div>
 
-  <p id="feedback"></p>
+  <div id="feedback"></div>
 
   <h2>Stappen</h2>
   <div id="stappen"></div>
 
-  <script>
-    let a, b, x, c;
-    let huidigeLinks, huidigeRechts;
-    let oplossing;
+<script>
+/* Eenvoudige rationale getallen (breuken) met normalisatie */
+function gcd(a,b){ a = Math.abs(a); b = Math.abs(b); while(b){ let t = a % b; a = b; b = t; } return a; }
+function makeR(n,d=1){ if(d===0) throw 'Deling door nul'; if(d<0){ n=-n; d=-d; } const g = gcd(n,d); return {n: n/g, d: d/g}; }
+function addR(a,b){ return makeR(a.n*b.d + b.n*a.d, a.d*b.d); }
+function subR(a,b){ return makeR(a.n*b.d - b.n*a.d, a.d*b.d); }
+function mulR(a,b){ return makeR(a.n*b.n, a.d*b.d); }
+function divR(a,b){ if(b.n===0) throw 'Deling door nul'; return makeR(a.n*b.d, a.d*b.n); }
+function eqR(a,b){ return a.n===b.n && a.d===b.d; }
+function isZeroR(a){ return a.n===0; }
+function isOneR(a){ return a.n===a.d; }
 
-    function newEquation() {
-      const level = document.getElementById("level").value;
-      if (level === "easy") {
-        a = Math.floor(Math.random() * 5) + 1;
-        x = Math.floor(Math.random() * 9) + 1;
-        b = Math.floor(Math.random() * 10);
-      } else {
-        a = Math.floor(Math.random() * 9) + 2;
-        x = Math.floor(Math.random() * 21) - 10;
-        b = Math.floor(Math.random() * 21) - 10;
-      }
-      c = a * x + b;
-      oplossing = x;
-      huidigeLinks = a + " * x " + (b >= 0 ? "+ " + b : "- " + Math.abs(b));
-      huidigeRechts = c.toString();
-      document.getElementById("stappen").innerHTML = "";
-      showBordjes([a, "x", b >= 0 ? "+" : "-", Math.abs(b), "=", c]);
-      addStap([a, "x", b >= 0 ? "+" : "-", Math.abs(b), "=", c]);
-      document.getElementById("feedback").innerText = "";
-      document.getElementById("userNumber").value = "";
+function toStrR(a){
+  if(a.d===1) return String(a.n);
+  return a.n + "/" + a.d;
+}
+
+function formatLeft(coeff,consta){
+  // coeff * x + const
+  if(isZeroR(coeff)){
+    return toStrR(consta);
+  }
+  // coeff part
+  let coeffStr = '';
+  if(isOneR(coeff)) coeffStr = 'x';
+  else if(coeff.n === -coeff.d) coeffStr = '-x';
+  else coeffStr = toStrR(coeff) + 'x';
+
+  if(isZeroR(consta)) return coeffStr;
+  // const part
+  if(consta.n > 0) return coeffStr + ' + ' + toStrR(consta);
+  return coeffStr + ' - ' + toStrR(makeR(Math.abs(consta.n), consta.d));
+}
+
+/* Huidige vergelijking: coeff * x + const = right */
+let coeff, consta, rightVal;
+let oplossing; // integer solution for comparison
+
+function newEquation(){
+  const level = document.getElementById('level').value;
+  let a, x, b;
+  if(level === 'easy'){
+    a = Math.floor(Math.random()*5)+1; //1-5
+    x = Math.floor(Math.random()*9)+1; //1-9
+    b = Math.floor(Math.random()*10); //0-9
+  } else if(level === 'medium'){
+    a = Math.floor(Math.random()*9)+2; //2-10
+    x = Math.floor(Math.random()*21)-10; //-10..10
+    b = Math.floor(Math.random()*21)-10; //-10..10
+  } else {
+    a = Math.floor(Math.random()*9)+2;
+    x = Math.floor(Math.random()*21)-10;
+    b = Math.floor(Math.random()*21)-10;
+  }
+  coeff = makeR(a,1);
+  consta = makeR(b,1);
+  rightVal = makeR(a*x + b,1);
+  oplossing = x;
+  document.getElementById('stappen').innerHTML = '';
+  updateEquationDisplay();
+  addStep('Start', formatLeft(coeff,consta) + ' = ' + toStrR(rightVal));
+  document.getElementById('feedback').innerText = '';
+  document.getElementById('userNumber').value = '';
+}
+
+function updateEquationDisplay(){
+  document.getElementById('equation').textContent = formatLeft(coeff,consta) + ' = ' + toStrR(rightVal);
+}
+
+function addStep(title, text){
+  const stappen = document.getElementById('stappen');
+  const div = document.createElement('div');
+  div.className = 'stapregel';
+  div.innerHTML = '<strong>' + title + ':</strong>\n' + text;
+  stappen.appendChild(div);
+  // scroll to bottom
+  stappen.scrollTop = stappen.scrollHeight;
+}
+
+function doStep(){
+  const operatie = document.getElementById('bewerking').value;
+  const numInput = document.getElementById('userNumber').value;
+  if(numInput === ''){ document.getElementById('feedback').innerText = 'Vul een getal in.'; return; }
+  const n = parseInt(numInput,10);
+  if(!Number.isInteger(n)){ document.getElementById('feedback').innerText = 'Voer een geheel getal in.'; return; }
+
+  // bewaar oude waarden
+  const coeffBefore = {n: coeff.n, d: coeff.d};
+  const constBefore = {n: consta.n, d: consta.d};
+  const rightBefore = {n: rightVal.n, d: rightVal.d};
+
+  // pas operatie toe op beide kanten (coeff en const voor links)
+  try {
+    if(operatie === '+'){
+      consta = addR(consta, makeR(n,1));
+      rightVal = addR(rightVal, makeR(n,1));
+    } else if(operatie === '-'){
+      consta = subR(consta, makeR(n,1));
+      rightVal = subR(rightVal, makeR(n,1));
+    } else if(operatie === '*'){
+      coeff = mulR(coeff, makeR(n,1));
+      consta = mulR(consta, makeR(n,1));
+      rightVal = mulR(rightVal, makeR(n,1));
+    } else if(operatie === '/'){
+      if(n === 0){ document.getElementById('feedback').innerText = 'Delen door 0 is niet toegestaan.'; return; }
+      coeff = divR(coeff, makeR(n,1));
+      consta = divR(consta, makeR(n,1));
+      rightVal = divR(rightVal, makeR(n,1));
     }
+  } catch(e){
+    document.getElementById('feedback').innerText = 'Fout bij uitvoeren van de bewerking.';
+    return;
+  }
 
-    function showBordjes(content) {
-      const bordjes = document.getElementById("bordjes");
-      bordjes.innerHTML = '';
-      content.forEach(item => {
-        const div = document.createElement("div");
-        div.className = "vakje";
-        div.textContent = item;
-        bordjes.appendChild(div);
-      });
+  // Bouw staptekst met geëvalueerde resultaten
+  const opSym = (operatie === '*') ? '×' : (operatie === '/') ? '÷' : operatie;
+  const leftBeforeStr = formatLeft(coeffBefore, constBefore);
+  const leftAfterStr = formatLeft(coeff, consta);
+  const rightBeforeStr = toStrR(rightBefore);
+  const rightAfterStr = toStrR(rightVal);
+
+  const stapText = leftBeforeStr + ' ' + opSym + ' ' + n + ' = ' + leftAfterStr + '\n' +
+                   rightBeforeStr + ' ' + opSym + ' ' + n + ' = ' + rightAfterStr;
+
+  addStep('Actie', stapText);
+  updateEquationDisplay();
+  document.getElementById('userNumber').value = '';
+  document.getElementById('feedback').innerText = 'Stap uitgevoerd.';
+
+  // Check of links precies 'x' is (coeff == 1 en const == 0)
+  if(isOneR(coeff) && isZeroR(consta)){
+    const gevonden = rightVal;
+    const juist = eqR(gevonden, makeR(oplossing,1));
+    if(juist){
+      document.getElementById('feedback').innerText = '✅ Oplossing gevonden: x = ' + toStrR(gevonden) + ' (goed gedaan!)';
+      addStep('Eind', 'x = ' + toStrR(gevonden) + ' (correct)');
+    } else {
+      document.getElementById('feedback').innerText = '❌ Je hebt x = ' + toStrR(gevonden) + ', maar het juiste antwoord is ' + String(oplossing);
+      addStep('Eind', 'x = ' + toStrR(gevonden) + ' (fout — correct is ' + String(oplossing) + ')');
     }
+  }
+}
 
-    function addStap(content) {
-      const stappen = document.getElementById("stappen");
-      const div = document.createElement("div");
-      div.className = "stapregel";
-      div.textContent = content.join(" ");
-      stappen.appendChild(div);
-    }
+function reset(){
+  newEquation();
+}
 
-    function doStep() {
-      const operatie = document.getElementById("bewerking").value;
-      const num = parseInt(document.getElementById("userNumber").value);
-      if (isNaN(num)) {
-        document.getElementById("feedback").innerText = "Vul een getal in.";
-        return;
-      }
-
-      try {
-        let nieuweLinks = "(" + huidigeLinks + ") " + operatie + " " + num;
-        let nieuweRechts = "(" + huidigeRechts + ") " + operatie + " " + num;
-
-        huidigeLinks = nieuweLinks;
-        huidigeRechts = nieuweRechts;
-
-        let stapContent = [huidigeLinks, "=", huidigeRechts];
-        addStap(stapContent);
-        showBordjes(stapContent);
-
-        // Check of links alleen nog "x" is
-        if (huidigeLinks.trim() === "x" || huidigeLinks.trim() === "(x)") {
-          let gevonden = eval(huidigeRechts);
-          if (gevonden === oplossing) {
-            document.getElementById("feedback").innerText = "✅ Oplossing gevonden: x = " + gevonden + " (goed gedaan!)";
-          } else {
-            document.getElementById("feedback").innerText = "❌ Je hebt x = " + gevonden + " gevonden, maar het juiste antwoord is " + oplossing;
-          }
-        } else {
-          document.getElementById("feedback").innerText = "Stap uitgevoerd.";
-        }
-      } catch (e) {
-        document.getElementById("feedback").innerText = "Ongeldige stap.";
-      }
-    }
-
-    function reset() {
-      newEquation();
-    }
-
-    newEquation();
-  </script>
+newEquation();
+</script>
 </body>
 </html>
