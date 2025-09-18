@@ -52,6 +52,10 @@
       border-radius: 6px;
       margin-bottom: 0.5rem;
     }
+    #feedback {
+      font-weight: bold;
+      margin-top: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -89,7 +93,8 @@
 
   <script>
     let a, b, x, c;
-    let huidigeVergelijking;
+    let huidigeLinks, huidigeRechts;
+    let oplossing;
 
     function newEquation() {
       const level = document.getElementById("level").value;
@@ -103,10 +108,12 @@
         b = Math.floor(Math.random() * 21) - 10;
       }
       c = a * x + b;
-      huidigeVergelijking = [a, "x", b >= 0 ? "+" : "-", Math.abs(b), "=", c];
+      oplossing = x;
+      huidigeLinks = a + " * x " + (b >= 0 ? "+ " + b : "- " + Math.abs(b));
+      huidigeRechts = c.toString();
       document.getElementById("stappen").innerHTML = "";
-      showBordjes(huidigeVergelijking);
-      addStap(huidigeVergelijking);
+      showBordjes([a, "x", b >= 0 ? "+" : "-", Math.abs(b), "=", c]);
+      addStap([a, "x", b >= 0 ? "+" : "-", Math.abs(b), "=", c]);
       document.getElementById("feedback").innerText = "";
       document.getElementById("userNumber").value = "";
     }
@@ -138,22 +145,28 @@
         return;
       }
 
-      let links, rechts;
       try {
-        // Links (voor het = teken) en rechts (na het = teken) apart verwerken
-        const eqIndex = huidigeVergelijking.indexOf("=");
-        links = huidigeVergelijking.slice(0, eqIndex).join(" ");
-        rechts = huidigeVergelijking.slice(eqIndex + 1).join(" ");
+        let nieuweLinks = "(" + huidigeLinks + ") " + operatie + " " + num;
+        let nieuweRechts = "(" + huidigeRechts + ") " + operatie + " " + num;
 
-        // Evalueer links en rechts als expressies (beperk tot eenvoudige eval)
-        let nieuweLinks = "(" + links + ") " + operatie + " (" + num + ")";
-        let nieuweRechts = "(" + rechts + ") " + operatie + " (" + num + ")";
+        huidigeLinks = nieuweLinks;
+        huidigeRechts = nieuweRechts;
 
-        huidigeVergelijking = [nieuweLinks, "=", nieuweRechts];
+        let stapContent = [huidigeLinks, "=", huidigeRechts];
+        addStap(stapContent);
+        showBordjes(stapContent);
 
-        showBordjes(huidigeVergelijking);
-        addStap(huidigeVergelijking);
-        document.getElementById("feedback").innerText = "Stap uitgevoerd.";
+        // Check of links alleen nog "x" is
+        if (huidigeLinks.trim() === "x" || huidigeLinks.trim() === "(x)") {
+          let gevonden = eval(huidigeRechts);
+          if (gevonden === oplossing) {
+            document.getElementById("feedback").innerText = "✅ Oplossing gevonden: x = " + gevonden + " (goed gedaan!)";
+          } else {
+            document.getElementById("feedback").innerText = "❌ Je hebt x = " + gevonden + " gevonden, maar het juiste antwoord is " + oplossing;
+          }
+        } else {
+          document.getElementById("feedback").innerText = "Stap uitgevoerd.";
+        }
       } catch (e) {
         document.getElementById("feedback").innerText = "Ongeldige stap.";
       }
