@@ -45,6 +45,19 @@
       font-weight: bold;
       margin-top: 1rem;
     }
+    #stappen {
+      margin-top: 2rem;
+      text-align: left;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .stapregel {
+      background: #f0f0f0;
+      padding: 0.5rem;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -76,6 +89,9 @@
   <p id="feedback"></p>
   <p id="score">Score: 0</p>
 
+  <h2>Stappen</h2>
+  <div id="stappen"></div>
+
   <script>
     let a, b, x, c;
     let step = 0;
@@ -87,18 +103,16 @@
         a = Math.floor(Math.random() * 5) + 1;
         x = Math.floor(Math.random() * 9) + 1;
         b = Math.floor(Math.random() * 10);
-      } else if (level === "medium") {
+      } else if (level === "medium" || level === "hard") {
         a = Math.floor(Math.random() * 9) + 2;
         x = Math.floor(Math.random() * 21) - 10;
-        b = Math.floor(Math.random() * 21) - 10;
-      } else if (level === "hard") {
-        a = Math.floor(Math.random() * 9) + 2;
-        x = (Math.floor(Math.random() * 9) + 1) / (Math.floor(Math.random() * 9) + 1);
         b = Math.floor(Math.random() * 21) - 10;
       }
       c = a * x + b;
       step = 0;
+      document.getElementById("stappen").innerHTML = "";
       showBordjes([a, 'x', b >= 0 ? '+' : '-', Math.abs(b), '=', c]);
+      addStap([a, 'x', b >= 0 ? '+' : '-', Math.abs(b), '=', c]);
       document.getElementById("feedback").innerText = "";
       document.getElementById("userNumber").value = "";
     }
@@ -114,9 +128,12 @@
       });
     }
 
-    function updateScore(points) {
-      score += points;
-      document.getElementById("score").innerText = "Score: " + score;
+    function addStap(content) {
+      const stappen = document.getElementById("stappen");
+      const div = document.createElement("div");
+      div.className = "stapregel";
+      div.textContent = content.join(" ");
+      stappen.appendChild(div);
     }
 
     function doMinus() {
@@ -124,16 +141,18 @@
       if (step === 0) {
         if (num === b) {
           showBordjes([a, 'x', '=', c - b]);
+          addStap([a, 'x', '=', c - b]);
           document.getElementById("feedback").innerText = "Goed! Je hebt " + num + " van beide kanten afgehaald.";
-          updateScore(10);
+          score += 10;
           step++;
         } else {
           document.getElementById("feedback").innerText = "Probeer het opnieuw: welk getal moet je weghalen?";
-          updateScore(-2);
+          score -= 2;
         }
       } else {
         document.getElementById("feedback").innerText = "Deze stap kan nu niet.";
       }
+      updateScore();
     }
 
     function doDivide() {
@@ -141,16 +160,22 @@
       if (step === 1) {
         if (num === a) {
           showBordjes(['x', '=', (c - b) / a]);
+          addStap(['x', '=', (c - b) / a]);
           document.getElementById("feedback").innerText = "✅ Oplossing gevonden: x = " + ((c - b) / a);
-          updateScore(20);
+          score += 20;
           step++;
         } else {
           document.getElementById("feedback").innerText = "Probeer het opnieuw: door welk getal moet je delen?";
-          updateScore(-2);
+          score -= 2;
         }
       } else {
         document.getElementById("feedback").innerText = "Deze stap kan nu niet.";
       }
+      updateScore();
+    }
+
+    function updateScore() {
+      document.getElementById("score").innerText = "Score: " + score;
     }
 
     function reset() {
